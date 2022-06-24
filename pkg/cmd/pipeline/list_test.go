@@ -16,7 +16,6 @@ package pipeline
 
 import (
 	"fmt"
-
 	"testing"
 	"time"
 
@@ -24,11 +23,8 @@ import (
 	"github.com/tektoncd/cli/pkg/test"
 	cb "github.com/tektoncd/cli/pkg/test/builder"
 	testDynamic "github.com/tektoncd/cli/pkg/test/dynamic"
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	pipelinev1beta1test "github.com/tektoncd/pipeline/test"
-	pipelinetest "github.com/tektoncd/pipeline/test/v1alpha1"
-
 	"gotest.tools/v3/golden"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,8 +42,8 @@ func TestPipelinesList_invalid_namespace(t *testing.T) {
 
 	tdc := testDynamic.Options{}
 	dc, _ := tdc.Client()
-	cs, _ := test.SeedTestData(t, pipelinetest.Data{Namespaces: nsList})
-	cs.Pipeline.Resources = cb.APIResourceList("v1alpha1", []string{"pipeline"})
+	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{Namespaces: nsList})
+	cs.Pipeline.Resources = cb.APIResourceList("v1beta1", []string{"pipeline"})
 	p := &test.Params{Tekton: cs.Pipeline, Kube: cs.Kube, Dynamic: dc}
 
 	pipeline := Command(p)
@@ -69,8 +65,8 @@ func TestPipelinesList_empty(t *testing.T) {
 		},
 	}
 
-	cs, _ := test.SeedTestData(t, pipelinetest.Data{Namespaces: nsList})
-	cs.Pipeline.Resources = cb.APIResourceList("v1alpha1", []string{"pipeline"})
+	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{Namespaces: nsList})
+	cs.Pipeline.Resources = cb.APIResourceList("v1beta1", []string{"pipeline"})
 	tdc := testDynamic.Options{}
 	dc, err := tdc.Client()
 	if err != nil {
@@ -102,15 +98,15 @@ func TestPipelineList_only_pipelines(t *testing.T) {
 			},
 		},
 	}
-	version := "v1alpha1"
+	version := "v1beta1"
 	clock := clockwork.NewFakeClock()
 	cs, pdata := seedPipelines(t, clock, pipelines, nsList)
 	cs.Pipeline.Resources = cb.APIResourceList(version, []string{"pipeline"})
 	tdc := testDynamic.Options{}
 	dc, err := tdc.Client(
-		cb.UnstructuredP(pdata[0], version),
-		cb.UnstructuredP(pdata[1], version),
-		cb.UnstructuredP(pdata[2], version),
+		cb.UnstructuredV1beta1P(pdata[0], version),
+		cb.UnstructuredV1beta1P(pdata[1], version),
+		cb.UnstructuredV1beta1P(pdata[2], version),
 	)
 	if err != nil {
 		t.Errorf("unable to create dynamic client: %v", err)
@@ -125,65 +121,7 @@ func TestPipelineList_only_pipelines(t *testing.T) {
 	golden.Assert(t, output, fmt.Sprintf("%s.golden", t.Name()))
 }
 
-func TestPipelineList_only_pipelines_v1beta1(t *testing.T) {
-	clock := clockwork.NewFakeClock()
-	version := "v1beta1"
-
-	pdata := []*v1beta1.Pipeline{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "tomatoes",
-				Namespace:         "namespace",
-				CreationTimestamp: metav1.Time{Time: clock.Now().Add(-1 * time.Minute)},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "mangoes",
-				Namespace:         "namespace",
-				CreationTimestamp: metav1.Time{Time: clock.Now().Add(-20 * time.Second)},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "bananas",
-				Namespace: "namespace",
-				// Created 3 weeks ago
-				CreationTimestamp: metav1.Time{Time: clock.Now().Add(-512 * time.Hour)},
-			},
-		},
-	}
-
-	nsList := []*corev1.Namespace{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "namespace",
-			},
-		},
-	}
-
-	tdc := testDynamic.Options{}
-	dynamic, err := tdc.Client(
-		cb.UnstructuredV1beta1P(pdata[0], version),
-		cb.UnstructuredV1beta1P(pdata[1], version),
-		cb.UnstructuredV1beta1P(pdata[2], version),
-	)
-	if err != nil {
-		t.Errorf("unable to create dynamic client: %v", err)
-	}
-	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{Pipelines: pdata, Namespaces: nsList})
-	p := &test.Params{Tekton: cs.Pipeline, Clock: clock, Kube: cs.Kube, Dynamic: dynamic}
-	cs.Pipeline.Resources = cb.APIResourceList(version, []string{"pipeline"})
-	pipeline := Command(p)
-
-	output, err := test.ExecuteCommand(pipeline, "list", "-n", "namespace")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	golden.Assert(t, output, fmt.Sprintf("%s.golden", t.Name()))
-}
-
-func TestPipelineList_only_pipelines_no_headers_v1beta1(t *testing.T) {
+func TestPipelineList_only_pipelines_no_headers(t *testing.T) {
 	clock := clockwork.NewFakeClock()
 	version := "v1beta1"
 
@@ -241,7 +179,7 @@ func TestPipelineList_only_pipelines_no_headers_v1beta1(t *testing.T) {
 	golden.Assert(t, output, fmt.Sprintf("%s.golden", t.Name()))
 }
 
-func TestPipelineList_only_pipelines_all_namespaces_v1beta1(t *testing.T) {
+func TestPipelineList_only_pipelines_all_namespaces(t *testing.T) {
 	clock := clockwork.NewFakeClock()
 
 	version := "v1beta1"
@@ -318,7 +256,7 @@ func TestPipelineList_only_pipelines_all_namespaces_v1beta1(t *testing.T) {
 	golden.Assert(t, output, fmt.Sprintf("%s.golden", t.Name()))
 }
 
-func TestPipelineList_only_pipelines_all_namespaces_no_headers_v1beta1(t *testing.T) {
+func TestPipelineList_only_pipelines_all_namespaces_no_headers(t *testing.T) {
 
 	clock := clockwork.NewFakeClock()
 	version := "v1beta1"
@@ -397,8 +335,8 @@ func TestPipelineList_only_pipelines_all_namespaces_no_headers_v1beta1(t *testin
 
 func TestPipelinesList_with_single_run(t *testing.T) {
 	clock := clockwork.NewFakeClock()
-	version := "v1alpha1"
-	pdata := []*v1alpha1.Pipeline{
+	version := "v1beta1"
+	pdata := []*v1beta1.Pipeline{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pipeline",
@@ -409,7 +347,7 @@ func TestPipelinesList_with_single_run(t *testing.T) {
 		},
 	}
 
-	prdata := []*v1alpha1.PipelineRun{
+	prdata := []*v1beta1.PipelineRun{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "pipeline-run-1",
@@ -417,12 +355,12 @@ func TestPipelinesList_with_single_run(t *testing.T) {
 				CreationTimestamp: metav1.Time{Time: clock.Now()},
 				Labels:            map[string]string{"tekton.dev/pipeline": "pipeline"},
 			},
-			Spec: v1alpha1.PipelineRunSpec{
-				PipelineRef: &v1alpha1.PipelineRef{
+			Spec: v1beta1.PipelineRunSpec{
+				PipelineRef: &v1beta1.PipelineRef{
 					Name: "pipeline",
 				},
 			},
-			Status: v1alpha1.PipelineRunStatus{
+			Status: v1beta1.PipelineRunStatus{
 				Status: duckv1beta1.Status{
 					Conditions: duckv1beta1.Conditions{
 						{
@@ -441,7 +379,7 @@ func TestPipelinesList_with_single_run(t *testing.T) {
 		},
 	}
 
-	cs, _ := test.SeedTestData(t, pipelinetest.Data{
+	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{
 		Pipelines:    pdata,
 		PipelineRuns: prdata,
 		Namespaces: []*corev1.Namespace{
@@ -455,8 +393,8 @@ func TestPipelinesList_with_single_run(t *testing.T) {
 	cs.Pipeline.Resources = cb.APIResourceList(version, []string{"pipeline", "pipelinerun"})
 	tdc := testDynamic.Options{}
 	dc, err := tdc.Client(
-		cb.UnstructuredP(pdata[0], version),
-		cb.UnstructuredPR(prdata[0], version),
+		cb.UnstructuredV1beta1P(pdata[0], version),
+		cb.UnstructuredV1beta1PR(prdata[0], version),
 	)
 	if err != nil {
 		t.Errorf("unable to create dynamic client: %v", err)
@@ -478,7 +416,7 @@ func TestPipelinesList_with_single_run(t *testing.T) {
 }
 
 func TestPipelinesList_latest_run(t *testing.T) {
-	version := "v1alpha1"
+	version := "v1beta1"
 	clock := clockwork.NewFakeClock()
 	//  Time --->
 	//  |---5m ---|------------ ││--││------------- ---│--│
@@ -501,7 +439,7 @@ func TestPipelinesList_latest_run(t *testing.T) {
 		secondRunStarted   = secondRunCreated.Add(2 * time.Second)
 		secondRunCompleted = secondRunStarted.Add(runDuration) // takes less thus completes
 	)
-	pdata := []*v1alpha1.Pipeline{
+	pdata := []*v1beta1.Pipeline{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pipeline",
@@ -512,7 +450,7 @@ func TestPipelinesList_latest_run(t *testing.T) {
 		},
 	}
 
-	prdata := []*v1alpha1.PipelineRun{
+	prdata := []*v1beta1.PipelineRun{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "pipeline-run-1",
@@ -520,12 +458,12 @@ func TestPipelinesList_latest_run(t *testing.T) {
 				CreationTimestamp: metav1.Time{Time: firstRunCreated},
 				Labels:            map[string]string{"tekton.dev/pipeline": "pipeline"},
 			},
-			Spec: v1alpha1.PipelineRunSpec{
-				PipelineRef: &v1alpha1.PipelineRef{
+			Spec: v1beta1.PipelineRunSpec{
+				PipelineRef: &v1beta1.PipelineRef{
 					Name: "pipeline",
 				},
 			},
-			Status: v1alpha1.PipelineRunStatus{
+			Status: v1beta1.PipelineRunStatus{
 				Status: duckv1beta1.Status{
 					Conditions: duckv1beta1.Conditions{
 						{
@@ -547,12 +485,12 @@ func TestPipelinesList_latest_run(t *testing.T) {
 				CreationTimestamp: metav1.Time{Time: secondRunCreated},
 				Labels:            map[string]string{"tekton.dev/pipeline": "pipeline"},
 			},
-			Spec: v1alpha1.PipelineRunSpec{
-				PipelineRef: &v1alpha1.PipelineRef{
+			Spec: v1beta1.PipelineRunSpec{
+				PipelineRef: &v1beta1.PipelineRef{
 					Name: "pipeline",
 				},
 			},
-			Status: v1alpha1.PipelineRunStatus{
+			Status: v1beta1.PipelineRunStatus{
 				Status: duckv1beta1.Status{
 					Conditions: duckv1beta1.Conditions{
 						{
@@ -569,7 +507,7 @@ func TestPipelinesList_latest_run(t *testing.T) {
 		},
 	}
 
-	cs, _ := test.SeedTestData(t, pipelinetest.Data{
+	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{
 		Pipelines:    pdata,
 		PipelineRuns: prdata,
 		Namespaces: []*corev1.Namespace{
@@ -583,9 +521,9 @@ func TestPipelinesList_latest_run(t *testing.T) {
 	cs.Pipeline.Resources = cb.APIResourceList(version, []string{"pipeline", "pipelinerun"})
 	tdc := testDynamic.Options{}
 	dc, err := tdc.Client(
-		cb.UnstructuredP(pdata[0], version),
-		cb.UnstructuredPR(prdata[0], version),
-		cb.UnstructuredPR(prdata[1], version),
+		cb.UnstructuredV1beta1P(pdata[0], version),
+		cb.UnstructuredV1beta1PR(prdata[0], version),
+		cb.UnstructuredV1beta1PR(prdata[1], version),
 	)
 	if err != nil {
 		t.Errorf("unable to create dynamic client: %v", err)
@@ -608,11 +546,11 @@ type pipelineDetails struct {
 	namespace string
 }
 
-func seedPipelines(t *testing.T, clock clockwork.Clock, ps []pipelineDetails, nsList []*corev1.Namespace) (pipelinetest.Clients, []*v1alpha1.Pipeline) {
-	pipelines := []*v1alpha1.Pipeline{}
+func seedPipelines(t *testing.T, clock clockwork.Clock, ps []pipelineDetails, nsList []*corev1.Namespace) (pipelinev1beta1test.Clients, []*v1beta1.Pipeline) {
+	pipelines := []*v1beta1.Pipeline{}
 	for _, p := range ps {
 		pipelines = append(pipelines,
-			&v1alpha1.Pipeline{
+			&v1beta1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              p.name,
 					Namespace:         p.namespace,
@@ -620,7 +558,7 @@ func seedPipelines(t *testing.T, clock clockwork.Clock, ps []pipelineDetails, ns
 				},
 			})
 	}
-	cs, _ := test.SeedTestData(t, pipelinetest.Data{Pipelines: pipelines, Namespaces: nsList})
+	cs, _ := test.SeedV1beta1TestData(t, pipelinev1beta1test.Data{Pipelines: pipelines, Namespaces: nsList})
 
 	return cs, pipelines
 }
